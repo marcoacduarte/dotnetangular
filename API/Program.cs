@@ -1,3 +1,4 @@
+using Core.Interfaces;
 using Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,6 +13,8 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddDbContext<StoreContext>(options => options.UseSqlite(builder.Configuration.GetConnectionString("Default")));
 
+builder.Services.AddScoped<IProductRepository, ProductRepository>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -24,5 +27,23 @@ if (app.Environment.IsDevelopment())
 app.UseAuthorization();
 
 app.MapControllers();
+
+//migrations in program.cs
+//using is used to waranty that the service is disposed
+using var scope = app.Services.CreateScope();
+var services = scope.ServiceProvider;
+var context = services.GetRequiredService<StoreContext>();
+var logger = services.GetRequiredService<ILogger<Program>>();
+
+try
+{
+    await context.Database.MigrateAsync();
+    await StoreContextSeed.SeedAsync(context);
+}
+catch (Exception ex)
+{
+    logger.LogError(ex, "Error occured during migration");
+}
+//program.cs migrations end
 
 app.Run();
